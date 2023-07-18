@@ -3,6 +3,8 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import MinValueValidator, MaxValueValidator
 from .managers import UserAccountManager
 
+def upload_to(instance, filename):
+    return 'posts/{filename}'.format(filename=filename)
 
 GENDER_CHOICES = [
     ('M', ('Male')),
@@ -16,7 +18,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(max_length=255, unique=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    profile_image = models.ImageField(blank=True, null=True)
+    profile_image = models.ImageField(blank=True, null=True, upload_to=upload_to, default='user.png')
     age = models.IntegerField(validators=[MinValueValidator(18), MaxValueValidator(99)])
     is_online = models.BooleanField(default=False)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
@@ -28,4 +30,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ["first_name", "last_name", "age"]
 
     def __str__(self):
-        return self.email
+        return self.first_name
+    
+    def get_follower_count(self):
+        return self.followers.count()
+
+    def get_following_count(self):
+        return self.following.count()

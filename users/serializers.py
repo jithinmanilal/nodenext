@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core import exceptions
+from post.serializers import FollowSerializer
 
 
 User = get_user_model()
@@ -33,8 +34,30 @@ class UserCreateSerializer(serializers.ModelSerializer):
         )
         return user
 
+
 class UserSerializer(serializers.ModelSerializer):
+    follower_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    followers = serializers.SerializerMethodField()
+    following = serializers.SerializerMethodField()
+
+    def get_follower_count(self, obj):
+        return obj.get_follower_count()
+
+    def get_following_count(self, obj):
+        return obj.get_following_count()
+
+    def get_followers(self, obj):
+        followers = obj.followers.all()
+        follower_serializer = FollowSerializer(followers, many=True)
+        return follower_serializer.data
+
+    def get_following(self, obj):
+        following = obj.following.all()
+        following_serializer = FollowSerializer(following, many=True)
+        return following_serializer.data
+
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 'gender')
+        fields = ('id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 'gender', 'profile_image', 'follower_count', 'following_count', 'followers', 'following')
 
