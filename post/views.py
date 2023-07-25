@@ -1,8 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework import permissions, status, generics
 from rest_framework.response import Response
-from .serializers import PostSerializer, CommentSerializer, UserSerializer
-from .models import Post, Comment, Follow
+from django.db.models import Q
+
+from .serializers import PostSerializer, CommentSerializer, UserSerializer, NotificationSerializer
+from .models import Post, Comment, Follow, Notification
 from users.models import User
 
 # Create your views here.
@@ -23,8 +25,19 @@ class CreatePostView(APIView):
             user = request.user
             post_img = request.data['post_img']
             content = request.data['content']
-            Post.objects.create(author=user, post_img=post_img, content=content)
-            return Response(status=status.HTTP_201_CREATED)
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                post = serializer.save(author=user, post_img=post_img, content=content)
+                for follower in user.followers.all():
+                    Notification.objects.create(
+                        from_user=user,
+                        to_user=follower.follower,
+                        post=post,
+                        notification_type=Notification.NOTIFICATION_TYPES[1][0],
+                    )
+                return Response(status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)            
         except Exception as e:
             return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -48,11 +61,18 @@ class UpdatePostView(APIView):
 
     def post(self, request, pk):
         try:
+            user = request.user
             post_obj = Post.objects.get(pk=pk)
             serializer = self.serializer_class(post_obj, data=request.data, partial=True)
-            print(request.data)
             if serializer.is_valid():
-                serializer.save()
+                post = serializer.save()
+                # for follower in user.followers.all():
+                #     Notification.objects.create(
+                #         to_user=follower.follower,
+                #         from_user=request.user,
+                #         post=post,
+                #         notification_type=Notification.NOTIFICATION_TYPES[1][0],
+                #     )
                 return Response(status=status.HTTP_200_OK)
             return Response(serializer.errors)
         
@@ -72,6 +92,13 @@ class LikeView(APIView):
                 return Response("Like removed", status=status.HTTP_200_OK)
             else:
                 post.likes.add(user)
+                if not post.author == user:
+                    Notification.objects.create(
+                        from_user=user,
+                        to_user=post.author,
+                        post=post,
+                        notification_type=Notification.NOTIFICATION_TYPES[0][0],
+                    )                   
                 return Response("Like added", status=status.HTTP_200_OK)
         except Post.DoesNotExist:
             return Response("Post not found", status=status.HTTP_404_NOT_FOUND)
@@ -94,6 +121,11 @@ class FollowView(APIView):
             else:
                 follow = Follow(following=following, follower=follower)
                 follow.save()
+                Notification.objects.create(
+                        from_user=follower,
+                        to_user=following,
+                        notification_type=Notification.NOTIFICATION_TYPES[2][0],
+                    ) 
                 return Response("Followed", status=status.HTTP_200_OK)
 
         except User.DoesNotExist:
@@ -108,7 +140,17 @@ class NetworkListView(generics.ListAPIView):
 
     def get_queryset(self):
         current_user = self.request.user
-        queryset = User.objects.exclude(pk=current_user.pk).order_by('-first_name')
+        queryset = User.objects.exclude(Q(id=current_user.id) | Q(followers__follower=current_user))
+        return queryset
+    
+
+class FollowListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        current_user = self.request.user
+        queryset = User.objects.filter(Q(followers__follower=current_user) & ~Q(id=current_user.id))
         return queryset
 
 
@@ -119,9 +161,22 @@ class CreateCommentView(APIView):
     def post(self, request, pk, *args, **kwargs):
         try:
             user = request.user
-            body = request.data['content']
-            Comment.objects.create(user=user, post_id=pk, body=body)
-            return Response(status=status.HTTP_201_CREATED)
+            body = request.data.get('body')
+            print(request.data, body)
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                comment = serializer.save(user=user, post_id=pk, body=body)
+                if not comment.post.author == user:
+                    Notification.objects.create(
+                            from_user=user,
+                            to_user=comment.post.author,
+                            post = comment.post,
+                            notification_type=Notification.NOTIFICATION_TYPES[3][0],
+                        )
+                return Response(status=status.HTTP_201_CREATED)
+            else:
+                print(serializer.errors)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -135,5 +190,36 @@ class DeleteCommentView(APIView):
             comment.delete()                        
             return Response(status=status.HTTP_200_OK)
         except Comment.DoesNotExist:
+            return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
+
+
+class NotificationsView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return Notification.objects.filter(to_user=user).exclude(is_seen=True).order_by('-created')
+
+    def get(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class NotificationsSeenView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = NotificationSerializer
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            notification = Notification.objects.get(pk=pk)
+            notification.is_seen = True
+            notification.save()
+            return Response(status=status.HTTP_200_OK)
+        except Post.DoesNotExist:
             return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
 

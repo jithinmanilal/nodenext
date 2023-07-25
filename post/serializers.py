@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, Comment, Follow
+from .models import Post, Comment, Follow, Notification
 from users.models import User
 
 class UserSerializer(serializers.ModelSerializer):
@@ -9,10 +9,10 @@ class UserSerializer(serializers.ModelSerializer):
     following = serializers.SerializerMethodField()
 
     def get_follower_count(self, obj):
-        return obj.get_follower_count()
+        return obj.followers.count()
 
     def get_following_count(self, obj):
-        return obj.get_following_count()
+        return obj.following.count()
 
     def get_followers(self, obj):
         followers = obj.followers.all()
@@ -27,6 +27,12 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 'gender', 'profile_image', 'follower_count', 'following_count', 'followers', 'following')
+
+
+class UserNotifySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'first_name', 'last_name', 'email')
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -63,4 +69,20 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['id', 'post_img', 'content', 'created_at', 'updated_at', 'likes', 'likes_count', 'author', 'comments', 'followers']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    from_user = UserNotifySerializer(read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = '__all__'
+        read_only_fields = ('notification_type',)
+
+    def validate_notification_type(self, value):
+        choices = dict(Notification.NOTIFICATION_TYPES)
+        if value not in choices:
+            raise serializers.ValidationError("Invalid notification type.")
+        return value
+
 
