@@ -17,6 +17,7 @@ class RegisterView(APIView):
         user = UserSerializer(user)
         return Response(user.data, status=status.HTTP_201_CREATED)
 
+
 class RetrieveUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -24,3 +25,23 @@ class RetrieveUserView(APIView):
         user = request.user
         user = UserSerializer(user)
         return Response(user.data, status=status.HTTP_200_OK)
+    
+
+class UpdateUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def post(self, request):
+        try:
+            user = request.user
+            user_obj = User.objects.get(pk=user.id)
+            print(user.id)
+            serializer = self.serializer_class(user_obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                post = serializer.save()
+                return Response(status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)        
+        except User.DoesNotExist:
+            return Response("User not found in the database.", status=status.HTTP_404_NOT_FOUND)
+
+

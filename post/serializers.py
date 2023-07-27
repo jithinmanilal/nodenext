@@ -7,6 +7,7 @@ class UserSerializer(serializers.ModelSerializer):
     following_count = serializers.SerializerMethodField()
     followers = serializers.SerializerMethodField()
     following = serializers.SerializerMethodField()
+    total_posts = serializers.SerializerMethodField()
 
     def get_follower_count(self, obj):
         return obj.followers.count()
@@ -24,9 +25,14 @@ class UserSerializer(serializers.ModelSerializer):
         following_serializer = FollowSerializer(following, many=True)
         return following_serializer.data
 
+    def get_total_posts(self, obj):
+        return obj.post_set.filter(is_deleted=False).count()
+
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 'gender', 'profile_image', 'follower_count', 'following_count', 'followers', 'following')
+        fields = ['id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 
+                  'gender', 'profile_image', 'follower_count', 'following_count', 'followers', 'following', 
+                  'total_posts', 'country', 'education', 'work']
 
 
 class UserNotifySerializer(serializers.ModelSerializer):
@@ -68,7 +74,8 @@ class PostSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ['id', 'post_img', 'content', 'created_at', 'updated_at', 'likes', 'likes_count', 'author', 'comments', 'followers']
+        fields = ['id', 'post_img', 'content', 'created_at', 'updated_at', 'likes', 'likes_count', 'author', 
+                  'comments', 'followers']
 
 
 class NotificationSerializer(serializers.ModelSerializer):

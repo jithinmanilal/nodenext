@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import ( PostListView, CreatePostView, DeletePostView, UpdatePostView, LikeView, 
-                    CreateCommentView, DeleteCommentView, FollowView, NetworkListView, FollowListView, NotificationsView, 
-                    NotificationsSeenView )
+                    CreateCommentView, DeleteCommentView, FollowView, NetworkListView, FollowListView, 
+                    NotificationsView, NotificationsSeenView, ProfileView )
 
 
 urlpatterns = [
@@ -11,6 +11,7 @@ urlpatterns = [
     path('following/', FollowListView.as_view(), name='following'),
     path('notifications/', NotificationsView.as_view(), name='notifications'),
     path('notifications-seen/<int:pk>/', NotificationsSeenView.as_view(), name='notifications-seen'),
+    path('profile/<str:email>/', ProfileView.as_view(), name='profile'),
     path('update-post/<int:pk>/', UpdatePostView.as_view(), name='update-post'),
     path('delete-post/<int:pk>/', DeletePostView.as_view(), name='delete-post'),
     path('like/<int:pk>/', LikeView.as_view(), name='like-post'),
@@ -18,4 +19,3 @@ urlpatterns = [
     path('<int:pk>/comment/', CreateCommentView.as_view(), name='comment-post'),
     path('<int:pk>/delete-comment/', DeleteCommentView.as_view(), name='delete-comment'),
 ]
-

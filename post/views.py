@@ -223,3 +223,23 @@ class NotificationsSeenView(generics.ListAPIView):
         except Post.DoesNotExist:
             return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
 
+
+class ProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, email, *args, **kwargs):
+        try:
+            profile = User.objects.get(email=email)
+            profile_posts = Post.objects.filter(author=profile).exclude(is_deleted=True)
+            profile_serializer = UserSerializer(profile)
+            post_serializer = PostSerializer(profile_posts, many=True)
+
+            context = {
+                'profile_user': profile_serializer.data,
+                'profile_posts': post_serializer.data
+            }
+            return Response(context, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response("User not found in the database", status=status.HTTP_404_NOT_FOUND)
+

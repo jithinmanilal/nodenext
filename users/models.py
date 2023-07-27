@@ -4,7 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from .managers import UserAccountManager
 
 def upload_to(instance, filename):
-    return 'posts/{filename}'.format(filename=filename)
+    return 'profile/{filename}'.format(filename=filename)
 
 GENDER_CHOICES = [
     ('M', ('Male')),
@@ -23,6 +23,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_online = models.BooleanField(default=False)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
     country = models.CharField(max_length=50, blank=True, null=True)
+    education = models.CharField(max_length=100, blank=True, null=True)
+    work = models.CharField(max_length=100, blank=True, null=True)
 
     objects = UserAccountManager()
 
