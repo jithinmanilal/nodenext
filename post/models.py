@@ -13,9 +13,14 @@ class Post(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     likes = models.ManyToManyField(User, related_name='liked_posts', blank=True)
     is_deleted = models.BooleanField(default=False)
+    is_blocked = models.BooleanField(default=False)
+    reported_by_users = models.ManyToManyField(User, related_name='reported_posts', blank=True)
 
     def __str__(self):
         return self.content
+    
+    def total_reports(self):
+        return self.reported_by_users.count()
 
     def total_likes(self):
         return self.likes.count()
@@ -44,6 +49,7 @@ class Notification(models.Model):
         ('post', 'New Post'),
         ('follow', 'New Follow'),
         ('comment', 'New Comment'),
+        ('blocked', 'Post Blocked'),
     ]
    
    to_user = models.ForeignKey(User, related_name="notification_to", on_delete=models.CASCADE, null=True)

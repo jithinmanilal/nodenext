@@ -61,11 +61,15 @@ class FollowSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     likes_count = serializers.SerializerMethodField()
+    reports_count = serializers.SerializerMethodField()
     comments = CommentSerializer(many=True, read_only=True)
     followers = serializers.SerializerMethodField()
 
     def get_likes_count(self, obj):
         return obj.total_likes()
+    
+    def get_reports_count(self, obj):
+        return obj.total_reports()
 
     def get_followers(self, obj):
         followers = Follow.objects.filter(following=obj.author).select_related('follower')
@@ -75,7 +79,7 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['id', 'post_img', 'content', 'created_at', 'updated_at', 'likes', 'likes_count', 'author', 
-                  'comments', 'followers']
+                  'comments', 'followers', 'reports_count']
 
 
 class NotificationSerializer(serializers.ModelSerializer):

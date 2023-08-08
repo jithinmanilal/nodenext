@@ -1,12 +1,16 @@
 from django.urls import path
-from .views import ( PostListView, CreatePostView, DeletePostView, UpdatePostView, LikeView, 
+from .views import ( PostListView, CreatePostView, DeletePostView, UpdatePostView, LikeView, BlockPostView,
                     CreateCommentView, DeleteCommentView, FollowView, NetworkListView, FollowListView, 
-                    NotificationsView, NotificationsSeenView, ProfileView )
+                    PostDetailView, NotificationsView, NotificationsSeenView, ProfileView, ReportPostView, 
+                    PostBlockedListView, PostReportedListView )
 
 
 urlpatterns = [
     path('', PostListView.as_view()),
+    path('view/<int:pk>/', PostDetailView.as_view(), name='view-post'),
     path('create-post/', CreatePostView.as_view(), name='create-post'),
+    path('blocked/', PostBlockedListView.as_view(), name='blocked'),
+    path('reported/', PostReportedListView.as_view(), name='reported'),
     path('network/', NetworkListView.as_view(), name='to-network'),
     path('following/', FollowListView.as_view(), name='following'),
     path('notifications/', NotificationsView.as_view(), name='notifications'),
@@ -14,7 +18,9 @@ urlpatterns = [
     path('profile/<str:email>/', ProfileView.as_view(), name='profile'),
     path('update-post/<int:pk>/', UpdatePostView.as_view(), name='update-post'),
     path('delete-post/<int:pk>/', DeletePostView.as_view(), name='delete-post'),
+    path('block-post/<int:pk>/', BlockPostView.as_view(), name='block-post'),
     path('like/<int:pk>/', LikeView.as_view(), name='like-post'),
+    path('report/<int:pk>/', ReportPostView.as_view(), name='report-post'),
     path('follow/<int:pk>/', FollowView.as_view(), name='follow'),
     path('<int:pk>/comment/', CreateCommentView.as_view(), name='comment-post'),
     path('<int:pk>/delete-comment/', DeleteCommentView.as_view(), name='delete-comment'),

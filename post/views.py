@@ -12,7 +12,25 @@ from users.models import User
 
 class PostListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Post.objects.all().exclude(is_deleted=True).order_by('-created_at')
+    queryset = Post.objects.filter(Q(is_deleted=False) & Q(is_blocked=False)).order_by('-created_at')
+    serializer_class = PostSerializer
+
+
+class PostBlockedListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Post.objects.filter(is_blocked=True).order_by('-created_at')
+    serializer_class = PostSerializer
+
+
+class PostReportedListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Post.objects.filter(is_blocked=False, reported_by_users__isnull=False).order_by('-created_at')
+    serializer_class = PostSerializer
+
+
+class PostDetailView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Post.objects.all()
     serializer_class = PostSerializer
 
 
@@ -50,6 +68,26 @@ class DeletePostView(APIView):
             post = Post.objects.get(pk=pk)
             post.is_deleted = True
             post.save()
+            return Response(status=status.HTTP_200_OK)
+        except Post.DoesNotExist:
+            return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
+        
+
+class BlockPostView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            user = request.user
+            post = Post.objects.get(pk=pk)
+            post.is_blocked = True
+            post.save()
+            Notification.objects.create(
+                        from_user=user,
+                        to_user=post.author,
+                        post=post,
+                        notification_type=Notification.NOTIFICATION_TYPES[4][0],
+                    )
             return Response(status=status.HTTP_200_OK)
         except Post.DoesNotExist:
             return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
@@ -105,6 +143,26 @@ class LikeView(APIView):
         except Exception as e:
             return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+
+class ReportPostView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            post = Post.objects.get(pk=pk)
+            user = request.user
+
+            if user in post.reported_by_users.all():
+                return Response("You have already reported this post.", status=status.HTTP_400_BAD_REQUEST)
+
+            post.reported_by_users.add(user)                  
+            return Response("Post Reported", status=status.HTTP_200_OK)
+                
+        except Post.DoesNotExist:
+            return Response("Post not found", status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
         
 class FollowView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -230,7 +288,7 @@ class ProfileView(APIView):
     def post(self, request, email, *args, **kwargs):
         try:
             profile = User.objects.get(email=email)
-            profile_posts = Post.objects.filter(author=profile).exclude(is_deleted=True)
+            profile_posts = Post.objects.filter(author=profile, is_deleted=False).order_by('-updated_at')
             profile_serializer = UserSerializer(profile)
             post_serializer = PostSerializer(profile_posts, many=True)
 

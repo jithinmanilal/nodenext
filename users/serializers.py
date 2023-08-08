@@ -40,6 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
     following_count = serializers.SerializerMethodField()
     followers = serializers.SerializerMethodField()
     following = serializers.SerializerMethodField()
+    reported_posts_count = serializers.SerializerMethodField()
 
     def get_follower_count(self, obj):
         return obj.get_follower_count()
@@ -56,10 +57,32 @@ class UserSerializer(serializers.ModelSerializer):
         following = obj.following.all()
         following_serializer = FollowSerializer(following, many=True)
         return following_serializer.data
+    
+    def get_reported_posts_count(self, obj):
+        return obj.reported_posts.count()
 
     class Meta:
         model = User
         fields = ['id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 
                   'gender', 'profile_image', 'follower_count', 'following_count', 'followers', 'following', 
-                  'country', 'education', 'work']
+                  'country', 'education', 'work', 'reported_posts_count']
+
+class UserAdminSerializer(serializers.ModelSerializer):
+    follower_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    reported_posts_count = serializers.SerializerMethodField()
+
+    def get_follower_count(self, obj):
+        return obj.get_follower_count()
+
+    def get_following_count(self, obj):
+        return obj.get_following_count()
+    
+    def get_reported_posts_count(self, obj):
+        return obj.reported_posts.count()
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active',
+                  'profile_image', 'follower_count', 'following_count', 'reported_posts_count']
 
