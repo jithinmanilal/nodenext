@@ -1,6 +1,8 @@
 from rest_framework import serializers
+from taggit.serializers import TaggitSerializer, TagListSerializerField
 from .models import Post, Comment, Follow, Notification
 from users.models import User
+from django.forms.models import model_to_dict
 
 class UserSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()
@@ -58,12 +60,13 @@ class FollowSerializer(serializers.ModelSerializer):
         fields = ['following', 'follower']
 
 
-class PostSerializer(serializers.ModelSerializer):
+class PostSerializer(TaggitSerializer, serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     likes_count = serializers.SerializerMethodField()
     reports_count = serializers.SerializerMethodField()
     comments = CommentSerializer(many=True, read_only=True)
     followers = serializers.SerializerMethodField()
+    tags = TagListSerializerField()
 
     def get_likes_count(self, obj):
         return obj.total_likes()
@@ -79,7 +82,7 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['id', 'post_img', 'content', 'created_at', 'updated_at', 'likes', 'likes_count', 'author', 
-                  'comments', 'followers', 'reports_count']
+                  'comments', 'followers', 'reports_count', 'tags']
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -95,5 +98,4 @@ class NotificationSerializer(serializers.ModelSerializer):
         if value not in choices:
             raise serializers.ValidationError("Invalid notification type.")
         return value
-
 

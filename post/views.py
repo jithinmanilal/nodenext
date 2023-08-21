@@ -9,21 +9,32 @@ from users.models import User
 
 # Create your views here.
 
-
 class PostListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     queryset = Post.objects.filter(Q(is_deleted=False) & Q(is_blocked=False)).order_by('-created_at')
     serializer_class = PostSerializer
 
 
-class PostBlockedListView(generics.ListAPIView):
+class PostSearchView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        tag_names = request.query_params.getlist('tags')
+        if not tag_names:
+            return Response({"error": "Please provide at least one tag."}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = Post.objects.filter(tags__name__in=tag_names, is_deleted=False, is_blocked=False)
+        serializer = PostSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PostBlockedListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAdminUser]
     queryset = Post.objects.filter(is_blocked=True).order_by('-created_at')
     serializer_class = PostSerializer
 
 
 class PostReportedListView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
     queryset = Post.objects.filter(is_blocked=False, reported_by_users__isnull=False).order_by('-created_at')
     serializer_class = PostSerializer
 
@@ -43,9 +54,10 @@ class CreatePostView(APIView):
             user = request.user
             post_img = request.data['post_img']
             content = request.data['content']
+            tags = request.data.get('tags')
             serializer = self.serializer_class(data=request.data)
             if serializer.is_valid():
-                post = serializer.save(author=user, post_img=post_img, content=content)
+                post = serializer.save(author=user, post_img=post_img, content=content, tags=tags)
                 for follower in user.followers.all():
                     Notification.objects.create(
                         from_user=user,
@@ -53,7 +65,11 @@ class CreatePostView(APIView):
                         post=post,
                         notification_type=Notification.NOTIFICATION_TYPES[1][0],
                     )
-                return Response(status=status.HTTP_201_CREATED)
+                
+                # Serialize the created post instance
+                serialized_post = self.serializer_class(instance=post)
+            
+                return Response(serialized_post.data, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)            
         except Exception as e:
@@ -74,7 +90,7 @@ class DeletePostView(APIView):
         
 
 class BlockPostView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
 
     def delete(self, request, pk):
         try:
@@ -99,18 +115,10 @@ class UpdatePostView(APIView):
 
     def post(self, request, pk):
         try:
-            user = request.user
             post_obj = Post.objects.get(pk=pk)
             serializer = self.serializer_class(post_obj, data=request.data, partial=True)
             if serializer.is_valid():
-                post = serializer.save()
-                # for follower in user.followers.all():
-                #     Notification.objects.create(
-                #         to_user=follower.follower,
-                #         from_user=request.user,
-                #         post=post,
-                #         notification_type=Notification.NOTIFICATION_TYPES[1][0],
-                #     )
+                serializer.save()
                 return Response(status=status.HTTP_200_OK)
             return Response(serializer.errors)
         
@@ -212,6 +220,18 @@ class FollowListView(generics.ListAPIView):
         return queryset
 
 
+class ContactListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        current_user = self.request.user
+        following_query = Q(followers__follower=current_user)
+        followers_query = Q(following__following=current_user)
+        queryset = User.objects.filter(following_query | followers_query).exclude(id=current_user.id).distinct()
+        return queryset
+
+
 class CreateCommentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CommentSerializer
@@ -223,14 +243,7 @@ class CreateCommentView(APIView):
             print(request.data, body)
             serializer = self.serializer_class(data=request.data)
             if serializer.is_valid():
-                comment = serializer.save(user=user, post_id=pk, body=body)
-                if not comment.post.author == user:
-                    Notification.objects.create(
-                            from_user=user,
-                            to_user=comment.post.author,
-                            post = comment.post,
-                            notification_type=Notification.NOTIFICATION_TYPES[3][0],
-                        )
+                serializer.save(user=user, post_id=pk, body=body)
                 return Response(status=status.HTTP_201_CREATED)
             else:
                 print(serializer.errors)

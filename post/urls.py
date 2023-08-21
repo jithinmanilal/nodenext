@@ -2,17 +2,20 @@ from django.urls import path
 from .views import ( PostListView, CreatePostView, DeletePostView, UpdatePostView, LikeView, BlockPostView,
                     CreateCommentView, DeleteCommentView, FollowView, NetworkListView, FollowListView, 
                     PostDetailView, NotificationsView, NotificationsSeenView, ProfileView, ReportPostView, 
-                    PostBlockedListView, PostReportedListView )
+                    PostBlockedListView, PostReportedListView, ContactListView, PostSearchView )
 
+app_name = 'post'
 
 urlpatterns = [
-    path('', PostListView.as_view()),
+    path('', PostListView.as_view(), name='posts'),
+    path('search/', PostSearchView.as_view(), name='post-search'),
     path('view/<int:pk>/', PostDetailView.as_view(), name='view-post'),
     path('create-post/', CreatePostView.as_view(), name='create-post'),
     path('blocked/', PostBlockedListView.as_view(), name='blocked'),
     path('reported/', PostReportedListView.as_view(), name='reported'),
     path('network/', NetworkListView.as_view(), name='to-network'),
     path('following/', FollowListView.as_view(), name='following'),
+    path('contacts/', ContactListView.as_view(), name='contacts'),
     path('notifications/', NotificationsView.as_view(), name='notifications'),
     path('notifications-seen/<int:pk>/', NotificationsSeenView.as_view(), name='notifications-seen'),
     path('profile/<str:email>/', ProfileView.as_view(), name='profile'),

@@ -6,4 +6,5 @@ class PostConfig(AppConfig):
     name = 'post'
 
     def ready(self):
+        import post.signals
         import post.views

@@ -45,13 +45,13 @@ class UpdateUserView(APIView):
 
 
 class UserListView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
     queryset = User.objects.all()
     serializer_class = UserAdminSerializer
 
 
 class UserBlockView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
     serializer_class = UserAdminSerializer
 
     def post(self, request, pk):

@@ -1,5 +1,6 @@
 from django.db import models
 from users.models import User
+from taggit.managers import TaggableManager
 
 def upload_post(instance, filename):
     return 'posts/{filename}'.format(filename=filename)
@@ -15,10 +16,14 @@ class Post(models.Model):
     is_deleted = models.BooleanField(default=False)
     is_blocked = models.BooleanField(default=False)
     reported_by_users = models.ManyToManyField(User, related_name='reported_posts', blank=True)
+    tags = TaggableManager(blank=True)
 
     def __str__(self):
         return self.content
     
+    def get_tags(self):
+        return self.tags.names()
+
     def total_reports(self):
         return self.reported_by_users.count()
 
@@ -32,7 +37,7 @@ class Comment(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return '%s - %s' % (self.post.content, self.user.first_name)
+        return '%s - %s' % (self.body, self.user.first_name)
 
 
 class Follow(models.Model):
@@ -62,4 +67,4 @@ class Notification(models.Model):
    
    def __str__(self):
         return f"{self.from_user} sent a {self.notification_type} notification to {self.to_user}"
-
+    
