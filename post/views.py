@@ -1,18 +1,38 @@
 from rest_framework.views import APIView
 from rest_framework import permissions, status, generics
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Q, Count
 
-from .serializers import PostSerializer, CommentSerializer, UserSerializer, NotificationSerializer
-from .models import Post, Comment, Follow, Notification
+from .serializers import PostSerializer, CommentSerializer, UserSerializer, NotificationSerializer, TagsSerializer
+from .models import Post, Comment, Follow, Notification, Interest
+from taggit.models import Tag
 from users.models import User
 
 # Create your views here.
 
 class PostListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Post.objects.filter(Q(is_deleted=False) & Q(is_blocked=False)).order_by('-created_at')
     serializer_class = PostSerializer
+    
+    def get_queryset(self):
+        # Get the authenticated user
+        user = self.request.user
+
+        # Annotate the queryset with the count of shared interests (tags)
+        queryset = Post.objects.filter(Q(is_deleted=False) & Q(is_blocked=False))
+        user_tags = Interest.objects.get(user=user).interests.all()
+        queryset = queryset.annotate(
+            shared_tags=Count(
+                'tags',
+                filter=Q(tags__in=user_tags)
+            )
+        )
+
+        # Order the queryset by the count of shared interests (tags) in descending order
+        queryset = queryset.order_by('-shared_tags', '-created_at')
+
+        return queryset
 
 
 class PostSearchView(APIView):
@@ -48,13 +68,14 @@ class PostDetailView(generics.RetrieveAPIView):
 class CreatePostView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = PostSerializer
+    parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
         try:
             user = request.user
             post_img = request.data['post_img']
             content = request.data['content']
-            tags = request.data.get('tags')
+            tags = request.data.getlist('tags')
             serializer = self.serializer_class(data=request.data)
             if serializer.is_valid():
                 post = serializer.save(author=user, post_img=post_img, content=content, tags=tags)
@@ -314,3 +335,40 @@ class ProfileView(APIView):
         except User.DoesNotExist:
             return Response("User not found in the database", status=status.HTTP_404_NOT_FOUND)
 
+
+class CreateInterestAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        interests_data = request.data.get('interests')
+        print(interests_data)
+
+        if not interests_data:
+            return Response({"message": "Please provide interests data"}, status=status.HTTP_400_BAD_REQUEST)
+        interest_instance, created = Interest.objects.get_or_create(user=user)
+
+        for interest in interests_data:
+            try:
+                interest = Tag.objects.get(name=interest)
+                interest_instance.interests.add(interest)
+            except Tag.DoesNotExist:
+                # Handle the case where the Tag with the provided ID does not exist.
+                return Response({"message": f"Tag with ID {interest} does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                # Handle the case where interests_data contains invalid data.
+                return Response({"message": "Invalid interest data"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_interest = True
+        user.save()
+        return Response({"message": "Interests added successfully"}, status=status.HTTP_201_CREATED)
+
+
+class ListTagsAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        tags = Tag.objects.all().distinct()
+        serialized_tags = TagsSerializer(tags, many=True).data
+
+        return Response({"tags": serialized_tags}, status=status.HTTP_200_OK)

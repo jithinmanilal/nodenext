@@ -1,6 +1,7 @@
 from django.db import models
 from users.models import User
 from taggit.managers import TaggableManager
+from taggit.models import Tag
 
 def upload_post(instance, filename):
     return 'posts/{filename}'.format(filename=filename)
@@ -67,4 +68,11 @@ class Notification(models.Model):
    
    def __str__(self):
         return f"{self.from_user} sent a {self.notification_type} notification to {self.to_user}"
-    
+
+
+class Interest(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    interests = models.ManyToManyField(Tag, related_name='interests', blank=True)
+
+    def __str__(self):
+        return self.user.first_name

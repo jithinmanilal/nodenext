@@ -2,13 +2,16 @@ from django.urls import path
 from .views import ( PostListView, CreatePostView, DeletePostView, UpdatePostView, LikeView, BlockPostView,
                     CreateCommentView, DeleteCommentView, FollowView, NetworkListView, FollowListView, 
                     PostDetailView, NotificationsView, NotificationsSeenView, ProfileView, ReportPostView, 
-                    PostBlockedListView, PostReportedListView, ContactListView, PostSearchView )
+                    PostBlockedListView, PostReportedListView, ContactListView, PostSearchView, ListTagsAPIView,
+                    CreateInterestAPIView )
 
 app_name = 'post'
 
 urlpatterns = [
     path('', PostListView.as_view(), name='posts'),
     path('search/', PostSearchView.as_view(), name='post-search'),
+    path('tags/', ListTagsAPIView.as_view(), name='list-tags'),
+    path('interests/', CreateInterestAPIView.as_view(), name='interests'),
     path('view/<int:pk>/', PostDetailView.as_view(), name='view-post'),
     path('create-post/', CreatePostView.as_view(), name='create-post'),
     path('blocked/', PostBlockedListView.as_view(), name='blocked'),

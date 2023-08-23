@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from taggit.serializers import TaggitSerializer, TagListSerializerField
-from .models import Post, Comment, Follow, Notification
+from .models import Post, Comment, Follow, Notification, Interest
 from users.models import User
+from taggit.models import Tag
 from django.forms.models import model_to_dict
 
 class UserSerializer(serializers.ModelSerializer):
@@ -99,3 +100,14 @@ class NotificationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid notification type.")
         return value
 
+
+class InterestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Interest
+        fields = ('interests',)
+
+
+class TagsSerializer(TaggitSerializer, serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = '__all__'

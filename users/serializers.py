@@ -65,7 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 
                   'gender', 'profile_image', 'follower_count', 'following_count', 'followers', 'following', 
-                  'country', 'education', 'work', 'reported_posts_count']
+                  'country', 'education', 'work', 'reported_posts_count', 'set_interest']
 
 class UserAdminSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()

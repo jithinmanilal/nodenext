@@ -25,6 +25,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     country = models.CharField(max_length=50, blank=True, null=True)
     education = models.CharField(max_length=100, blank=True, null=True)
     work = models.CharField(max_length=100, blank=True, null=True)
+    set_interest = models.BooleanField(default=False)
 
     objects = UserAccountManager()
 
