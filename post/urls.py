@@ -3,15 +3,17 @@ from .views import ( PostListView, CreatePostView, DeletePostView, UpdatePostVie
                     CreateCommentView, DeleteCommentView, FollowView, NetworkListView, FollowListView, 
                     PostDetailView, NotificationsView, NotificationsSeenView, ProfileView, ReportPostView, 
                     PostBlockedListView, PostReportedListView, ContactListView, PostSearchView, ListTagsAPIView,
-                    CreateInterestAPIView )
+                    CreateInterestAPIView, UserPostListView, UpdateInterestAPIView )
 
 app_name = 'post'
 
 urlpatterns = [
     path('', PostListView.as_view(), name='posts'),
+    path('user-posts/', UserPostListView.as_view(), name='user-posts'),
     path('search/', PostSearchView.as_view(), name='post-search'),
     path('tags/', ListTagsAPIView.as_view(), name='list-tags'),
     path('interests/', CreateInterestAPIView.as_view(), name='interests'),
+    path('update-interests/', UpdateInterestAPIView.as_view(), name='update-interests'),
     path('view/<int:pk>/', PostDetailView.as_view(), name='view-post'),
     path('create-post/', CreatePostView.as_view(), name='create-post'),
     path('blocked/', PostBlockedListView.as_view(), name='blocked'),

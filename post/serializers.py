@@ -83,7 +83,7 @@ class PostSerializer(TaggitSerializer, serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['id', 'post_img', 'content', 'created_at', 'updated_at', 'likes', 'likes_count', 'author', 
-                  'comments', 'followers', 'reports_count', 'tags']
+                  'comments', 'followers', 'reports_count', 'tags', 'is_deleted', 'is_blocked']
 
 
 class NotificationSerializer(serializers.ModelSerializer):

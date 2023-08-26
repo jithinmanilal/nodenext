@@ -16,10 +16,7 @@ class PostListView(generics.ListAPIView):
     serializer_class = PostSerializer
     
     def get_queryset(self):
-        # Get the authenticated user
         user = self.request.user
-
-        # Annotate the queryset with the count of shared interests (tags)
         queryset = Post.objects.filter(Q(is_deleted=False) & Q(is_blocked=False))
         user_tags = Interest.objects.get(user=user).interests.all()
         queryset = queryset.annotate(
@@ -28,10 +25,17 @@ class PostListView(generics.ListAPIView):
                 filter=Q(tags__in=user_tags)
             )
         )
-
-        # Order the queryset by the count of shared interests (tags) in descending order
         queryset = queryset.order_by('-shared_tags', '-created_at')
+        return queryset
 
+
+class UserPostListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PostSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Post.objects.filter(author=user)
         return queryset
 
 
@@ -362,6 +366,38 @@ class CreateInterestAPIView(APIView):
         user.set_interest = True
         user.save()
         return Response({"message": "Interests added successfully"}, status=status.HTTP_201_CREATED)
+    
+
+class UpdateInterestAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        interests_data = request.data.get('interests')
+        print(interests_data)
+
+        if not interests_data:
+            return Response({"message": "Please provide interests data"}, status=status.HTTP_400_BAD_REQUEST)
+
+        interest_instance, created = Interest.objects.get_or_create(user=user)
+
+        # Clear existing interests
+        interest_instance.interests.clear()
+
+        for interest_name in interests_data:
+            try:
+                interest = Tag.objects.get(name=interest_name)
+                interest_instance.interests.add(interest)
+            except Tag.DoesNotExist:
+                # Handle the case where the Tag with the provided name does not exist.
+                return Response({"message": f"Tag with name '{interest_name}' does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                # Handle the case where interests_data contains invalid data.
+                return Response({"message": "Invalid interest data"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_interest = True
+        user.save()
+        return Response({"message": "Interests updated successfully"}, status=status.HTTP_200_OK)
 
 
 class ListTagsAPIView(APIView):

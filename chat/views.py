@@ -2,10 +2,11 @@ from rest_framework.views import APIView
 from rest_framework import permissions, status, generics
 from rest_framework.response import Response
 
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 
 from.models import ChatRoom, Message
-from .serializers import ChatRoomSerializer, MessageSerializer
+from .serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer
 # Create your views here.
 
 User = get_user_model()
@@ -48,3 +49,26 @@ class RoomMessagesView(APIView):
         except Exception as e:
             return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class MesageSeenView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MessageSerializer
+ 
+    def get(self, request, pk):
+        current_user = request.user
+        other_user = User.objects.get(pk=pk)
+        if ChatRoom.objects.filter(members=current_user).filter(members=other_user).exists():
+            chat_room = ChatRoom.objects.filter(members=current_user).filter(members=other_user).first()
+            messages_to_update = Message.objects.filter(Q(room=chat_room) & ~Q(sender=current_user))            
+            messages_to_update.update(is_seen=True)            
+            return Response(status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Chat room not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+
+class ChatRoomListView(generics.ListAPIView):
+    serializer_class = ChatRoomListSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return ChatRoom.objects.filter(members=user)
