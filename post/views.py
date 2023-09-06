@@ -114,6 +114,19 @@ class DeletePostView(APIView):
             return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
         
 
+class RePostView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            post = Post.objects.get(pk=pk)
+            post.is_deleted = False
+            post.save()
+            return Response(status=status.HTTP_200_OK)
+        except Post.DoesNotExist:
+            return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
+        
+
 class BlockPostView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
