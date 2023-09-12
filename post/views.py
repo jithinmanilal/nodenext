@@ -43,10 +43,16 @@ class PostSearchView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        tag_names = request.query_params.getlist('tags')
-        if not tag_names:
-            return Response({"error": "Please provide at least one tag."}, status=status.HTTP_400_BAD_REQUEST)
-        queryset = Post.objects.filter(tags__name__in=tag_names, is_deleted=False, is_blocked=False)
+        filter_value = request.query_params.get('tags')
+        if not filter_value:
+            return Response({"error": "Please provide a filter parameter (filter_value)."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        queryset = Post.objects.filter(
+            Q(tags__name__in=[filter_value]) |
+            Q(author__username=filter_value),
+            is_deleted=False,
+            is_blocked=False
+        )
         serializer = PostSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
