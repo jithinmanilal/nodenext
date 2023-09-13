@@ -29,7 +29,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG")
 
-ALLOWED_HOSTS = ['18.212.154.34', 'cakesmiths.shop', 'www.cakesmiths.shop']
+ALLOWED_HOSTS = ['*']
 
 SITE_ID=1
 # Application definition
