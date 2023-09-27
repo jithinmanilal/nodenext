@@ -4,6 +4,7 @@ from .models import Post, Comment, Follow, Notification, Interest
 from users.models import User
 from taggit.models import Tag
 from django.forms.models import model_to_dict
+from django.utils.timesince import timesince
 
 class UserSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()
@@ -46,10 +47,14 @@ class UserNotifySerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    created = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Comment
         fields = [ 'id','user', 'body', 'created' ]
+    
+    def get_created(self, obj):
+        return timesince(obj.created)
 
 
 class FollowSerializer(serializers.ModelSerializer):

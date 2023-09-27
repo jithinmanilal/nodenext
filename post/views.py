@@ -3,11 +3,13 @@ from rest_framework import permissions, status, generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from django.db.models import Q, Count
+from django.db import transaction
 
 from .serializers import PostSerializer, CommentSerializer, UserSerializer, NotificationSerializer, TagsSerializer
 from .models import Post, Comment, Follow, Notification, Interest
 from taggit.models import Tag
 from users.models import User
+from chat.models import ChatRoom
 
 # Create your views here.
 
@@ -43,16 +45,10 @@ class PostSearchView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        filter_value = request.query_params.get('tags')
-        if not filter_value:
-            return Response({"error": "Please provide a filter parameter (filter_value)."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        queryset = Post.objects.filter(
-            Q(tags__name__in=[filter_value]) |
-            Q(author__username=filter_value),
-            is_deleted=False,
-            is_blocked=False
-        )
+        tag_names = request.query_params.getlist('tags')
+        if not tag_names:
+            return Response({"error": "Please provide at least one tag."}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = Post.objects.filter(tags__name__in=tag_names, is_deleted=False, is_blocked=False)
         serializer = PostSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -226,12 +222,23 @@ class FollowView(APIView):
             follow_instance = Follow.objects.filter(following=following, follower=follower).first()
 
             if follow_instance:
-                follow_instance.delete()
+                # Unfollow logic
+                with transaction.atomic():
+                    follow_instance.delete()
+                    # Check if the chat room exists and delete it
+                    chat_room = ChatRoom.objects.filter(members__in=[follower, following])
+                    if chat_room.exists():
+                        chat_room.delete()
                 return Response("Unfollowed", status=status.HTTP_200_OK)
             else:
-                follow = Follow(following=following, follower=follower)
-                follow.save()
-                Notification.objects.create(
+                # Follow logic
+                with transaction.atomic():
+                    follow = Follow(following=following, follower=follower)
+                    follow.save()
+                    # Create a new chat room
+                    chat_room, created = ChatRoom.objects.get_or_create()
+                    chat_room.members.add(follower, following)
+                    Notification.objects.create(
                         from_user=follower,
                         to_user=following,
                         notification_type=Notification.NOTIFICATION_TYPES[2][0],
@@ -288,7 +295,7 @@ class CreateCommentView(APIView):
             serializer = self.serializer_class(data=request.data)
             if serializer.is_valid():
                 serializer.save(user=user, post_id=pk, body=body)
-                return Response(status=status.HTTP_201_CREATED)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
                 print(serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -345,7 +352,7 @@ class ProfileView(APIView):
     def post(self, request, email, *args, **kwargs):
         try:
             profile = User.objects.get(email=email)
-            profile_posts = Post.objects.filter(author=profile, is_deleted=False).order_by('-updated_at')
+            profile_posts = Post.objects.filter(author=profile, is_deleted=False, is_blocked=False).order_by('-updated_at')
             profile_serializer = UserSerializer(profile)
             post_serializer = PostSerializer(profile_posts, many=True)
 
