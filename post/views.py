@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from django.db.models import Q, Count
 from django.db import transaction
 
-from .serializers import PostSerializer, CommentSerializer, UserSerializer, NotificationSerializer, TagsSerializer
+from .serializers import ( PostSerializer, CommentSerializer, UserSerializer, NotificationSerializer, 
+                          TagsSerializer, InterestSerializer )
 from .models import Post, Comment, Follow, Notification, Interest
 from taggit.models import Tag
 from users.models import User
@@ -430,7 +431,10 @@ class ListTagsAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, *args, **kwargs):
+        user = request.user
+        interest = Interest.objects.filter(user=user)
+        serialized_interests = InterestSerializer(interest, many=True).data
         tags = Tag.objects.all().distinct()
         serialized_tags = TagsSerializer(tags, many=True).data
 
-        return Response({"tags": serialized_tags}, status=status.HTTP_200_OK)
+        return Response({"tags": serialized_tags, "interests": serialized_interests}, status=status.HTTP_200_OK)
