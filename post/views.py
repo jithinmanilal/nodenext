@@ -221,7 +221,8 @@ class FollowView(APIView):
             following = User.objects.get(pk=pk)
             follower = request.user
             follow_instance = Follow.objects.filter(following=following, follower=follower).first()
-
+            print(following)
+            print(follower)
             if follow_instance:
                 # Unfollow logic
                 with transaction.atomic():
@@ -236,9 +237,6 @@ class FollowView(APIView):
                 with transaction.atomic():
                     follow = Follow(following=following, follower=follower)
                     follow.save()
-                    # Create a new chat room
-                    chat_room, created = ChatRoom.objects.get_or_create()
-                    chat_room.members.add(follower, following)
                     Notification.objects.create(
                         from_user=follower,
                         to_user=following,
