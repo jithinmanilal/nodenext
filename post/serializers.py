@@ -5,6 +5,7 @@ from users.models import User
 from taggit.models import Tag
 from django.forms.models import model_to_dict
 from django.utils.timesince import timesince
+import os
 
 class UserSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()
@@ -84,6 +85,20 @@ class PostSerializer(TaggitSerializer, serializers.ModelSerializer):
         followers = Follow.objects.filter(following=obj.author).select_related('follower')
         follower_serializer = FollowSerializer(instance=followers, many=True, context=self.context)
         return follower_serializer.data
+    
+    def validate_post_img(self, value):
+        max_size = 1.5 * 1024 * 1024  # 1.5 MB in bytes
+
+        if value.size > max_size:
+            raise serializers.ValidationError('The image size should not exceed 1.5 MB.')
+
+        valid_extensions = ['.jpg', '.jpeg', '.png', '.svg']
+        ext = os.path.splitext(value.name)[1].lower()
+
+        if ext not in valid_extensions:
+            raise serializers.ValidationError('Invalid image file type. Supported formats: jpg, jpeg, png, svg.')
+
+        return value
 
     class Meta:
         model = Post

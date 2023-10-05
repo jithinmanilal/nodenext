@@ -10,7 +10,6 @@ from .serializers import ( PostSerializer, CommentSerializer, UserSerializer, No
 from .models import Post, Comment, Follow, Notification, Interest
 from taggit.models import Tag
 from users.models import User
-from chat.models import ChatRoom
 
 # Create your views here.
 
@@ -46,10 +45,10 @@ class PostSearchView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        tag_names = request.query_params.getlist('tags')
-        if not tag_names:
+        tag_name = request.query_params.get('tags')
+        if not tag_name:
             return Response({"error": "Please provide at least one tag."}, status=status.HTTP_400_BAD_REQUEST)
-        queryset = Post.objects.filter(tags__name__in=tag_names, is_deleted=False, is_blocked=False)
+        queryset = Post.objects.filter(tags__name__icontains=tag_name, is_deleted=False, is_blocked=False)
         serializer = PostSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -150,6 +149,20 @@ class BlockPostView(APIView):
             return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
         
 
+class UnBlockPostView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, pk):
+        try:
+            user = request.user
+            post = Post.objects.get(pk=pk)
+            post.is_blocked = False
+            post.save()
+            return Response("Post unblocked successfully", status=status.HTTP_200_OK)
+        except Post.DoesNotExist:
+            return Response("Not found in database", status=status.HTTP_404_NOT_FOUND)
+        
+
 class UpdatePostView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = PostSerializer
@@ -228,9 +241,6 @@ class FollowView(APIView):
                 with transaction.atomic():
                     follow_instance.delete()
                     # Check if the chat room exists and delete it
-                    chat_room = ChatRoom.objects.filter(members__in=[follower, following])
-                    if chat_room.exists():
-                        chat_room.delete()
                 return Response("Unfollowed", status=status.HTTP_200_OK)
             else:
                 # Follow logic

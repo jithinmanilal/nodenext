@@ -3,6 +3,18 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core import exceptions
 from post.serializers import FollowSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework.exceptions import AuthenticationFailed
+import os
+
+class InvalidToken(AuthenticationFailed):
+    status_code = 400
+    default_detail = "Invalid token"
+    default_code = 'invalid'
+
+
 
 
 User = get_user_model()
@@ -60,12 +72,27 @@ class UserSerializer(serializers.ModelSerializer):
     
     def get_reported_posts_count(self, obj):
         return obj.reported_posts.count()
+    
+    def validate_profile_image(self, value):
+        max_size = 1.5 * 1024 * 1024  # 1.5 MB in bytes
+
+        if value.size > max_size:
+            raise serializers.ValidationError('The image size should not exceed 1.5 MB.')
+
+        valid_extensions = ['.jpg', '.jpeg', '.png', '.svg']
+        ext = os.path.splitext(value.name)[1].lower()
+
+        if ext not in valid_extensions:
+            raise serializers.ValidationError('Invalid image file type. Supported formats: jpg, jpeg, png, svg.')
+
+        return value
 
     class Meta:
         model = User
         fields = ['id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active', 'is_online', 
                   'gender', 'profile_image', 'follower_count', 'following_count', 'followers', 'following', 
                   'country', 'education', 'work', 'reported_posts_count', 'set_interest']
+
 
 class UserAdminSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()
@@ -86,3 +113,62 @@ class UserAdminSerializer(serializers.ModelSerializer):
         fields = ['id', 'email', 'first_name', 'last_name', 'age', 'is_superuser', 'is_active',
                   'profile_image', 'follower_count', 'following_count', 'reported_posts_count']
 
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+
+class EmailVerificationSerializer(serializers.ModelSerializer):
+    token = serializers.CharField(max_length=555)
+    class Meta:
+        model = User
+        fields = ['token']
+
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        if user.is_active:
+            token = super().get_token(user)
+            # Add custom claims
+            return token
+        else:
+            if user.is_online:
+                # User is not online, customize the response or raise an exception
+                raise InvalidToken("Your account has been blocked.")
+            else:
+                raise InvalidToken("Please verify your email id.")
+            
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    new_password = serializers.CharField(
+        style={'input_type': 'password'},
+        write_only=True
+    )
+    confirm_new_password = serializers.CharField(
+        style={'input_type': 'password'},
+        write_only=True
+    )
+
+    def validate(self, data):
+        new_password = data.get('new_password')
+        confirm_new_password = data.get('confirm_new_password')
+
+        # Check if the passwords match
+        if new_password != confirm_new_password:
+            raise serializers.ValidationError("Passwords do not match.")
+
+        # Check if the password length is at least 8 characters
+        if len(new_password) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+
+        # Check if there are spaces in the password
+        if ' ' in new_password:
+            raise serializers.ValidationError("Password cannot contain spaces.")
+
+        return data
